@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    image: node:20
+    working_dir: /workspace
+    command: sh -c "if [ ! -d node_modules ]; then npm install; fi && npm run start:dev --workspace apps/backend"
+    ports:
+      - '4000:4000'
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app_db
+    depends_on:
+      - postgres
+    volumes:
+      - ./:/workspace
+      - root_node_modules:/workspace/node_modules
+      - backend_node_modules:/workspace/apps/backend/node_modules
+      - frontend_node_modules:/workspace/apps/frontend/node_modules
+
+  frontend:
+    image: node:20
+    working_dir: /workspace
+    command: sh -c "if [ ! -d node_modules ]; then npm install; fi && npm run dev --workspace apps/frontend -- --host 0.0.0.0 --port 5173"
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_BASE_URL: http://backend:4000
+    depends_on:
+      - backend
+    volumes:
+      - ./:/workspace
+      - root_node_modules:/workspace/node_modules
+      - backend_node_modules:/workspace/apps/backend/node_modules
+      - frontend_node_modules:/workspace/apps/frontend/node_modules
+
+volumes:
+  pgdata:
+  root_node_modules:
+  backend_node_modules:
+  frontend_node_modules:
